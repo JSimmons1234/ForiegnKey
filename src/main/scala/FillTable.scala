@@ -1,49 +1,43 @@
 import slick.jdbc.MySQLProfile.api._
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
-
 import TableSetup._
-import Run._
 
 object FillTable {
 
-  val dropTable = DBIO.seq(suppliers.schema.dropIfExists, coffees.schema.dropIfExists)
-  val setupTable = DBIO.seq(suppliers.schema.createIfNotExists,coffees.schema.createIfNotExists)
-//  val dropTable = DBIO.seq(suppliers.schema.dropIfExists)
-//  val dropTable2 = DBIO.seq(coffees.schema.dropIfExists)
-//  val setupTable = DBIO.seq(suppliers.schema.createIfNotExists)
-//  val setupTable2 = DBIO.seq(coffees.schema.createIfNotExists)
 
+  val db = Database.forConfig("mysqlDB")
 
-  def dropDB() = {
-    //do a drop followed by initialisePeople
+  val dropPeopleCmd = DBIO.seq(suppliers.schema.dropIfExists)
+  val dropPeopleAddressesCmd = DBIO.seq(coffees.schema.dropIfExists)
+  val initPeopleCmd = DBIO.seq(suppliers.schema.createIfNotExists)
+  val initPeopleAddressesCmd = DBIO.seq(coffees.schema.createIfNotExists)
+
+  def dropDB: Future[Unit] = {
     val dropFuture = Future{
-      db.run(DBIO.seq(dropTable))
-
+      db.run(DBIO.seq(dropPeopleCmd, dropPeopleAddressesCmd))
     }
-    //Attempt to drop the table, Await does not block here
     Await.result(dropFuture, Duration.Inf).andThen{
-      case Success(_) =>  initialisePeople()
+      case Success(_) =>  initialisePeople
       case Failure(error) => println("Dropping the table failed due to: " + error.getMessage)
-        initialisePeople()
+        initialisePeople
     }
   }
 
-  def initialisePeople() = {
-    //initialise people
+  def initialisePeople: Future[Unit] = {
     val setupFuture =  Future {
-      db.run(DBIO.seq(setupTable))
+      db.run(DBIO.seq(initPeopleCmd, initPeopleAddressesCmd))
     }
-    //once our DB has finished initializing we are ready to roll, Await does not block
     Await.result(setupFuture, Duration.Inf).andThen{
-      case Success(_) => println("good to here")
+      case Success(_) => addToTable
       case Failure(error) => println("Initialising the table failed due to: " + error.getMessage)
     }
   }
 
-  def addToTable() {
+  def addToTable {
     val insertPeople = Future {
       val query = DBIO.seq(
         suppliers ++= Seq (
@@ -62,13 +56,13 @@ object FillTable {
       db.run(query)
     }
     Await.result(insertPeople, Duration.Inf).andThen {
-      case Success(_) => getData()
+      case Success(_) => getData
       case Failure(error) => println("Welp! Something went wrong! " + error.getMessage)
     }
   }
 
 
-  def getData(): Unit = {
+  def getData: Unit = {
     println("Coffees:")
     db.run(coffees.result).map(_.foreach {
       case (name, supID, price, sales, total) =>

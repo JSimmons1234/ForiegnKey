@@ -5,11 +5,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 object TableSetup {
+
   val suppliers = TableQuery[Suppliers]
   val coffees = TableQuery[Coffees]
 
   class Suppliers(tag: Tag) extends Table[(Int, String, String, String, String, String)](tag, "SUPPLIERS") {
-    def id = column[Int]("SUP_ID", O.PrimaryKey) // This is the primary key column
+    def id = column[Int]("SUP_ID", O.PrimaryKey, O.AutoInc) // This is the primary key column
     def name = column[String]("SUP_NAME")
 
     def street = column[String]("STREET")
@@ -28,6 +29,8 @@ object TableSetup {
 
     def supID = column[Int]("SUP_ID")
 
+    def supplier = foreignKey("Supp_FK", supID, suppliers)(_.id, onUpdate=ForeignKeyAction.Restrict, onDelete=ForeignKeyAction.Cascade)
+
     def price = column[Double]("PRICE")
 
     def sales = column[Int]("SALES")
@@ -36,7 +39,7 @@ object TableSetup {
 
     def * = (name, supID, price, sales, total)
 
-    def supplier = foreignKey("Supp_FK", supID, suppliers)(_.id, onUpdate=ForeignKeyAction.Restrict, onDelete=ForeignKeyAction.Cascade)
+
   }
 
 }
